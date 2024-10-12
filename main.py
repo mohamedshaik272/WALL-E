@@ -37,7 +37,6 @@ def get_file_hash(file_path):
         hasher.update(buf)
     return hasher.hexdigest()
 
-
 def get_file_category(file_path, user_categories):
     if not user_categories:
         # Default categorization if no user categories are defined
@@ -63,6 +62,10 @@ def get_file_category(file_path, user_categories):
         if general_type in user_categories:
             return user_categories[general_type]
 
+    # Consider drawings as images
+    if mime_type and mime_type.startswith('application/drawing'):
+        return 'Images'
+
     return 'Others'
 
 def extract_text_from_image(image_path):
@@ -86,7 +89,7 @@ def get_file_content(file_path, max_chars=1000):
         print(f"Error reading file {file_path}: {str(e)}")
         return ""
 
-def suggest_filename(file_path, naming_convention):
+def suggest_filename(file_path):
     content = get_file_content(file_path)
     if not content:
         return None
@@ -94,7 +97,7 @@ def suggest_filename(file_path, naming_convention):
         response = client.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=[
-                {"role": "system", "content": f"You are a helpful assistant that suggests concise and descriptive filenames based on file content. Use the {naming_convention} naming convention. Suggest only the filename without any explanation."},
+                {"role": "system", "content": "You are a helpful assistant that suggests concise and descriptive filenames based on file content. Suggest only the filename without any explanation or file extension."},
                 {"role": "user", "content": f"Suggest a concise and descriptive filename for a file with the following content:\n\n{content}"}
             ]
         )
@@ -103,41 +106,47 @@ def suggest_filename(file_path, naming_convention):
     except Exception as e:
         print(f"Error suggesting filename for {file_path}: {str(e)}")
         return None
-def get_custom_categories():
-    user_categories = {}
-    print("Enter custom categories. Format: 'mime_type: category_name'")
-    print("Example: 'image: pictures' or 'application/pdf: documents'")
-    print("Press Enter without typing anything when you're done.")
-    while True:
-        category = input("Enter a custom category (or press Enter to finish): ").strip()
-        if not category:
-            break
-        try:
-            mime_type, category_name = [item.strip() for item in category.split(':', 1)]
-            if not mime_type or not category_name:
-                print("Invalid format. Please use 'mime_type: category_name'.")
-                continue
-            user_categories[mime_type] = category_name
-        except ValueError:
-            print("Invalid format. Please use 'mime_type: category_name'.")
-    return user_categories
 
 def sanitize_filename(filename):
-    return ''.join(c for c in filename if c.isalnum() or c in (' ', '-', '_')).rstrip()
+    # Sanitize the filename
+    sanitized = ''.join(c for c in filename if c.isalnum() or c in (' ', '-', '_')).rstrip()
+    return sanitized
 
 def should_rename_file(file_path):
     # List of file types that shouldn't be renamed
-    no_rename_extensions = ['.exe', '.app', '.dmg', '.iso']
+    no_rename_extensions = ['.exe', '.app', '.iso']
     _, ext = os.path.splitext(file_path)
     if ext.lower() in no_rename_extensions:
         return False
-    # Add more conditions here if needed
     return True
 
-def organize_directory(directory, user_categories, naming_convention, remove_dmg):
+def review_code_file(file_path):
+    content = get_file_content(file_path)
+    try:
+        response = client.chat.completions.create(
+            model="gpt-3.5-turbo",
+            messages=[
+                {"role": "system", "content": "You are a code reviewer. Review the following code and provide a brief summary of its functionality."},
+                {"role": "user", "content": f"Review this code:\n\n{content}"}
+            ]
+        )
+        review = response.choices[0].message.content.strip()
+        return review
+    except Exception as e:
+        print(f"Error reviewing code file {file_path}: {str(e)}")
+        return "Unable to review the file."
+
+def organize_directory(directory, user_categories):
     hash_dict = {}
     for root, dirs, files in os.walk(directory):
+        # Ignore hidden directories
+        dirs[:] = [d for d in dirs if not d.startswith('.')]
+        
         for file in files:
+            # Ignore hidden files
+            if file.startswith('.'):
+                continue
+            
             file_path = os.path.join(root, file)
             file_hash = get_file_hash(file_path)
             
@@ -149,8 +158,8 @@ def organize_directory(directory, user_categories, naming_convention, remove_dmg
             
             hash_dict[file_hash] = file_path
             
-            # Remove .dmg files if specified
-            if remove_dmg and file.endswith('.dmg'):
+            # Remove .dmg files by default
+            if file.endswith('.dmg'):
                 os.remove(file_path)
                 print(f"Removed .dmg file: {file_path}")
                 continue
@@ -158,13 +167,20 @@ def organize_directory(directory, user_categories, naming_convention, remove_dmg
             # Get file category
             category = get_file_category(file_path, user_categories)
             
+            # Handle code files (.c, .java, etc.)
+            _, ext = os.path.splitext(file)
+            if ext.lower() in ['.c', '.java', '.py', '.cpp', '.h', '.js', '.cs']:
+                review = review_code_file(file_path)
+                print(f"Code file review for {file}:\n{review}")
+                category = 'Code'
+            
             # Create category folder
             category_path = os.path.join(directory, category)
             os.makedirs(category_path, exist_ok=True)
             
             # Suggest new filename if appropriate
             if should_rename_file(file_path):
-                new_name = suggest_filename(file_path, naming_convention)
+                new_name = suggest_filename(file_path)
                 if new_name:
                     new_name = sanitize_filename(new_name)
                     file_extension = os.path.splitext(file)[1]
@@ -176,7 +192,7 @@ def organize_directory(directory, user_categories, naming_convention, remove_dmg
                         new_file_path = os.path.join(category_path, f"{new_name}_{counter}{file_extension}")
                         counter += 1
                 else:
-                    new_file_path = os.path.join(category_path, file)
+                    new_file_path = os.path.join(category_path, sanitize_filename(os.path.splitext(file)[0]) + os.path.splitext(file)[1])
             else:
                 new_file_path = os.path.join(category_path, file)
             
@@ -196,22 +212,4 @@ if __name__ == "__main__":
         categorization_scheme = get_ai_categorization_scheme(user_description)
         print("Generated categorization scheme:", categorization_scheme)
     
-    # Ask user for naming convention
-    print("\nChoose a naming convention:")
-    print("1. camelCase")
-    print("2. snake_case")
-    print("3. kebab-case")
-    print("4. PascalCase")
-    naming_choice = input("Enter your choice (1-4): ")
-    naming_conventions = {
-        '1': 'camelCase',
-        '2': 'snake_case',
-        '3': 'kebab-case',
-        '4': 'PascalCase'
-    }
-    naming_convention = naming_conventions.get(naming_choice, 'snake_case')
-    
-    # Ask if user wants to remove .dmg files
-    remove_dmg = input("Do you want to remove .dmg files? (y/n): ").lower() == 'y'
-    
-    organize_directory(target_directory, categorization_scheme, naming_convention, remove_dmg)
+    organize_directory(target_directory, categorization_scheme)
