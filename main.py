@@ -15,6 +15,21 @@ load_dotenv()
 # Initialize the OpenAI client with the API key from .env
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
+def get_ai_categorization_scheme(user_description):
+    try:
+        response = client.chat.completions.create(
+            model="gpt-3.5-turbo",
+            messages=[
+                {"role": "system", "content": "You are an assistant that helps users organize their files. Based on the user's description, create a categorization scheme that maps file types to category names. Use precise category names, for example, code files should be named 'Code' or 'Programming' instead of 'Text'. Respond with a Python dictionary where keys are file extensions or MIME types, and values are category names."},
+                {"role": "user", "content": f"Create a file categorization scheme based on this description: {user_description}"}
+            ]
+        )
+        categorization_scheme = eval(response.choices[0].message.content.strip())
+        return categorization_scheme
+    except Exception as e:
+        print(f"Error generating categorization scheme: {str(e)}")
+        return {}
+
 def get_file_hash(file_path):
     hasher = hashlib.md5()
     with open(file_path, 'rb') as file:
@@ -22,18 +37,33 @@ def get_file_hash(file_path):
         hasher.update(buf)
     return hasher.hexdigest()
 
+
 def get_file_category(file_path, user_categories):
-    if user_categories:
+    if not user_categories:
+        # Default categorization if no user categories are defined
         mime_type, _ = mimetypes.guess_type(file_path)
         if mime_type:
             category = mime_type.split('/')[0]
-            if category in user_categories:
-                return user_categories[category]
+            return category if category != 'application' else 'documents'
+        return 'others'
+
+    # Check file extension
+    _, ext = os.path.splitext(file_path)
+    if ext.lower() in user_categories:
+        return user_categories[ext.lower()]
+
+    # Check mime type
     mime_type, _ = mimetypes.guess_type(file_path)
+    if mime_type in user_categories:
+        return user_categories[mime_type]
+
+    # Check general mime type category
     if mime_type:
-        category = mime_type.split('/')[0]
-        return category if category != 'application' else 'documents'
-    return 'others'
+        general_type = mime_type.split('/')[0]
+        if general_type in user_categories:
+            return user_categories[general_type]
+
+    return 'Others'
 
 def extract_text_from_image(image_path):
     try:
@@ -91,21 +121,6 @@ def get_custom_categories():
         except ValueError:
             print("Invalid format. Please use 'mime_type: category_name'.")
     return user_categories
-
-def get_file_category(file_path, user_categories):
-    mime_type, _ = mimetypes.guess_type(file_path)
-    if mime_type:
-        # Check for exact mime type match
-        if mime_type in user_categories:
-            return user_categories[mime_type]
-        # Check for general category match (e.g., 'image' for 'image/jpeg')
-        general_type = mime_type.split('/')[0]
-        if general_type in user_categories:
-            return user_categories[general_type]
-        # Default categorization
-        category = general_type
-        return category if category != 'application' else 'documents'
-    return 'others'
 
 def sanitize_filename(filename):
     return ''.join(c for c in filename if c.isalnum() or c in (' ', '-', '_')).rstrip()
@@ -172,9 +187,14 @@ def organize_directory(directory, user_categories, naming_convention, remove_dmg
 if __name__ == "__main__":
     target_directory = input("Enter the directory path to organize: ")
     
-    # Ask user for custom categories
-    use_custom_categories = input("Do you want to use custom categories? (y/n): ").lower() == 'y'
-    user_categories = get_custom_categories() if use_custom_categories else {}
+    # Ask user if they want to use custom categorization
+    use_custom_categories = input("Do you want to use a custom directory organization scheme? (y/n): ").lower() == 'y'
+    
+    categorization_scheme = {}
+    if use_custom_categories:
+        user_description = input("Describe how you'd like your files organized (e.g., 'I want my photos, documents, and code files separated'): ")
+        categorization_scheme = get_ai_categorization_scheme(user_description)
+        print("Generated categorization scheme:", categorization_scheme)
     
     # Ask user for naming convention
     print("\nChoose a naming convention:")
@@ -194,4 +214,4 @@ if __name__ == "__main__":
     # Ask if user wants to remove .dmg files
     remove_dmg = input("Do you want to remove .dmg files? (y/n): ").lower() == 'y'
     
-    organize_directory(target_directory, user_categories, naming_convention, remove_dmg)
+    organize_directory(target_directory, categorization_scheme, naming_convention, remove_dmg)
