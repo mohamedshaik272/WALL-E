@@ -2,3 +2,5 @@
 update_app.py
 canvas.py
 test2.py
+__pycache__/
+*.pyc
