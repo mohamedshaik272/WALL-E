@@ -1,5 +1,4 @@
 import os
-import time
 import shutil
 import mimetypes
 import hashlib
@@ -7,6 +6,7 @@ from openai import OpenAI
 from datetime import datetime
 from PIL import Image
 import pytesseract
+from pypdf import PdfReader
 from dotenv import load_dotenv
 
 # Load environment variables from .env file
@@ -14,8 +14,6 @@ load_dotenv()
 
 # Initialize the OpenAI client with the API key from .env
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-
-#"gpt-3.5-turbo"
 
 def get_ai_categorization_scheme(user_description):
     try:
@@ -79,14 +77,43 @@ def extract_text_from_image(image_path):
         print(f"Error extracting text from image {image_path}: {str(e)}")
         return ""
 
+def extract_text_from_pdf(file_path, max_chars=1000):
+    try:
+        # Open the PDF using PdfReader
+        reader = PdfReader(file_path)
+        extracted_text = ""
+
+        # Loop through pages and extract text
+        for page in reader.pages:
+            extracted_text += page.extract_text()
+
+            # Stop if max_chars is reached
+            if len(extracted_text) >= max_chars:
+                extracted_text = extracted_text[:max_chars]
+                break
+
+        return extracted_text
+    except Exception as e:
+        print(f"Error extracting text from PDF {file_path}: {str(e)}")
+        return ""
+
 def get_file_content(file_path, max_chars=1000):
     try:
         mime_type, _ = mimetypes.guess_type(file_path)
+
         if mime_type and mime_type.startswith('image'):
+            # Handle image file extraction
             return extract_text_from_image(file_path)
+
+        if mime_type and mime_type == 'application/pdf':
+            # Handle PDF text extraction
+            return extract_text_from_pdf(file_path, max_chars)
+
+        # For other files, read raw content
         with open(file_path, 'rb') as file:
             raw_content = file.read(max_chars)
         return raw_content.decode('utf-8', errors='ignore')
+
     except Exception as e:
         print(f"Error reading file {file_path}: {str(e)}")
         return ""
@@ -99,7 +126,7 @@ def suggest_filename(file_path):
         response = client.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=[
-                {"role": "system", "content": "You are a helpful assistant that suggests concise and descriptive filenames based on file content. Suggest only the filename without any explanation or file extension. Max 25 characters"},
+                {"role": "system", "content": "You are a helpful assistant that suggests concise and descriptive filenames based on file content. Suggest only the filename without any explanation or file extension. Max 20 characters"},
                 {"role": "user", "content": f"Suggest a concise and descriptive filename for a file with the following content:\n\n{content}"}
             ]
         )
