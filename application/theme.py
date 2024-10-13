@@ -30,7 +30,7 @@ class Theme:
         },
         CYBERPUNK: {
             "background": "transparent",
-            "text": "#4fc8b7",
+            "text": "#ffffff",
             "accent": "#4fc8b7",
         }
     }
@@ -77,12 +77,12 @@ class Theme:
                 font-family: "{cls.TITLE_FONT}";
             }}
             QLabel#menu-item {{
-                color: {colors['accent']};
+                color: {colors['text']};
                 font-size: 18px;
                 font-family: "{cls.MENU_FONT}";
             }}
             QLabel#menu-shortcut {{
-                color: {colors['accent']};
+                color: {colors['text']};
                 font-size: 18px;
                 font-family: "{cls.MENU_FONT}";
             }}

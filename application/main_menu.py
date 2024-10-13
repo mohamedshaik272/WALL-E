@@ -27,10 +27,10 @@ class MenuItem(QWidget):
 
         self.setStyleSheet("""
             QLabel {
-                color: #a9b1d6;
+                color: #ffffff;
             }
             QLabel#shortcut_label {
-                color: #565f89;
+                color: #ffffff;
             }
         """)
 
@@ -46,12 +46,12 @@ class MainMenu(QWidget):
     
     def create_menu_items(self):
         menu_options = [
-            ("    ", "Find File", "f    "),
-            ("    ", "Projects", "p    "),
-            ("    ", "Recent files", "r    "),
-            ("    ", "Find Text", "t    "),
-            ("    ", "Configuration", "c    "),
-            ("    ", "Quit", "q    ")
+            ("    📂", "Organize Directory", "d    "),
+            ("    🗄️", "Organize Drive", "r    "),
+            ("    🧹", "Clean-Up", "c    "),
+            ("    🔎", "Find Files", "f    "),
+            ("    🛠️", "Configuration", "g    "),
+            ("    ❌", "Quit", "q    ")
         ]
         
         for icon, text, shortcut in menu_options:
