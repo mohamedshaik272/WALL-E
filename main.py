@@ -138,6 +138,12 @@ def review_code_file(file_path):
         print(f"Error reviewing code file {file_path}: {str(e)}")
         return "Unable to review the file."
 
+def is_file_old(file_path, days_threshold=365):
+    """Check if a file hasn't been accessed in a long time."""
+    current_time = datetime.now().timestamp()
+    last_access_time = os.path.getmtime(file_path)
+    return (current_time - last_access_time) > (days_threshold * 24 * 60 * 60)
+
 def organize_directory(directory, user_categories):
     hash_dict = {}
     for root, dirs, files in os.walk(directory):
@@ -150,6 +156,13 @@ def organize_directory(directory, user_categories):
                 continue
             
             file_path = os.path.join(root, file)
+
+            # Check if file is old and potentially useless
+            if is_file_old(file_path):
+                os.remove(file_path)
+                print(f"Removed old file: {file_path}")
+                continue
+            
             file_hash = get_file_hash(file_path)
             
             if file_hash in hash_dict:
