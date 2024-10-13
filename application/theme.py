@@ -19,14 +19,14 @@ class Theme:
     # Color schemes
     COLORS = {
         SYSTEM_LIGHT: {
-            "background": "transparent",
-            "text": "#4fc8b7",
-            "accent": "#4fc8b7",
+            "background": "#ffffff",
+            "text": "#000000",
+            "accent": "#000000",
         },
         SYSTEM_DARK: {
-            "background": "transparent",
-            "text": "#4fc8b7",
-            "accent": "#4fc8b7",
+            "background": "000000",
+            "text": "#ffffff",
+            "accent": "#ffffff",
         },
         CYBERPUNK: {
             "background": "transparent",
