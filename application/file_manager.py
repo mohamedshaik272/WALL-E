@@ -1,12 +1,12 @@
-from PyQt5.QtWidgets import QMainWindow, QVBoxLayout, QLabel, QWidget, QApplication, QShortcut
-from PyQt5.QtCore import Qt
+from PyQt5.QtWidgets import QMainWindow, QVBoxLayout, QLabel, QWidget, QApplication, QShortcut, QFileDialog, QMessageBox
+from PyQt5.QtCore import Qt, QTimer
 from PyQt5.QtGui import QPainter, QColor, QPen, QPixmap, QPainterPath, QKeySequence
 from bordered_widget import BorderedWidget
 from main_menu import MainMenu
 from metric_menu import MetricMenu
 from theme import Theme
 from theme_buttons import ThemeButtons
-
+import backend_main
 class WALLEFileManager(QMainWindow):
     def __init__(self):
         super().__init__()
@@ -71,13 +71,34 @@ class WALLEFileManager(QMainWindow):
 
         for key, description in shortcuts:
             shortcut = QShortcut(QKeySequence(key), self)
-            shortcut.activated.connect(self.quit_application)
+            shortcut.activated.connect(lambda desc=description: self.handle_menu_click(desc))
+
 
     
     def handle_menu_click(self, item_text):
-        print(f"Clicked: {item_text}")
-        # For now, all menu items will quit the application
-        self.quit_application()
+        if item_text == "Organize Directory":
+            self.organize_directory()
+        elif item_text == "Quit":
+            self.quit_application()
+        else:
+            print(f"Clicked: {item_text}")  # Placeholder for other menu items
+
+    def organize_directory(self):
+        directory = QFileDialog.getExistingDirectory(self, "Select Directory to Organize")
+        if directory:
+            # Call the organize_directory function from main.py
+            backend_main.organize_directory(directory, {})  # Empty dict for default categorization
+            self.show_popup("Directory Organized")
+
+    def show_popup(self, message):
+        popup = QMessageBox(self)
+        popup.setText(message)
+        popup.setWindowFlags(Qt.FramelessWindowHint | Qt.Popup)
+        popup.setStyleSheet("background-color: #2d2d2d; color: #ffffff; padding: 10px;")
+        popup.show()
+
+        # Close the popup after 3 seconds
+        QTimer.singleShot(3000, popup.close)
 
     def quit_application(self):
         QApplication.quit()
