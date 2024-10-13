@@ -1,8 +1,9 @@
 from PyQt5.QtWidgets import QMainWindow, QVBoxLayout, QLabel, QWidget
 from PyQt5.QtCore import Qt
-from PyQt5.QtGui import QFont
+from PyQt5.QtGui import QPainter, QColor, QPen, QPixmap, QPainterPath
 from bordered_widget import BorderedWidget
 from main_menu import MainMenu
+from metric_menu import MetricMenu
 from theme import Theme
 from theme_buttons import ThemeButtons
 
@@ -32,6 +33,20 @@ class WALLEFileManager(QMainWindow):
         # Main Menu
         self.main_menu = MainMenu(self)
         self.central_widget.content_layout.addWidget(self.main_menu)
+
+        self.central_widget.content_layout.addStretch(1)
+        
+        # Add some spacing
+        self.central_widget.content_layout.addSpacing(20)
+        
+        # Live Metrics title
+        self.title_label = QLabel("Live Metrics")
+        self.title_label.setAlignment(Qt.AlignCenter)
+        self.central_widget.content_layout.addWidget(self.title_label)
+        
+        # Metric Menu
+        self.metric_menu = MetricMenu(self)
+        self.central_widget.content_layout.addWidget(self.metric_menu)
 
         self.central_widget.content_layout.addStretch(1)
         
