@@ -3,4 +3,5 @@ update_app.py
 canvas.py
 test2.py
 __pycache__/
+application/__pycache__
 *.pyc
