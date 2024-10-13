@@ -8,7 +8,7 @@ WALL-E is an innovative project aimed at cleaning the world—both physically an
 
 ## Key Features
 
-- **Physical Waste Cleaning**: Utilize computer vision and YOLO to identify and clean up various types of waste in real-world environments, promoting better recycling and waste management practices.
+- **Physical Waste Cleaning**: Utilize computer vision to identify and clean up various types of waste in real-world environments, promoting better recycling and waste management practices.
 - **File System Cleanups**: Automatically clean and organize files on your computer by identifying old, duplicate, or useless files, making your digital space more efficient and organized.
 - **Sustainability Focus**: Encourage environmentally responsible actions both offline and online by reducing waste and optimizing resource usage.
 - **User-Friendly Interface**: A simple and intuitive interface to make cleaning your space—whether physical or digital—quick and hassle-free.
@@ -22,7 +22,7 @@ WALL-E is an innovative project aimed at cleaning the world—both physically an
   - Camera
 
 - **Software**:
-  - OpenCV and YOLO
+  - OpenCV
   - PyQt5
   - React
 
