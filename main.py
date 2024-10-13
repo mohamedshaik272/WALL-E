@@ -99,7 +99,7 @@ def suggest_filename(file_path):
         response = client.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=[
-                {"role": "system", "content": "You are a helpful assistant that suggests concise and descriptive filenames based on file content. Suggest only the filename without any explanation or file extension."},
+                {"role": "system", "content": "You are a helpful assistant that suggests concise and descriptive filenames based on file content. Suggest only the filename without any explanation or file extension. Max 25 characters"},
                 {"role": "user", "content": f"Suggest a concise and descriptive filename for a file with the following content:\n\n{content}"}
             ]
         )
@@ -144,6 +144,25 @@ def is_file_old(file_path, days_threshold=365):
     last_access_time = os.path.getmtime(file_path)
     return (current_time - last_access_time) > (days_threshold * 24 * 60 * 60)
 
+def is_content_useless(file_path):
+    """Analyze file content to determine if it's useless."""
+    content = get_file_content(file_path)
+    if not content:
+        return False  # If we can't read the content, we assume it's not useless
+
+    try:
+        response = client.chat.completions.create(
+            model="gpt-3.5-turbo",
+            messages=[
+                {"role": "system", "content": "You are an assistant that analyzes file content to determine if it's useless. Useless files: Content in a non english language, any way associated with junk, installers. Respond with 'YES' if the content is useless or 'NO' if it might be valuable."},
+                {"role": "user", "content": f"Is the following file content useless?\n\n{content}"}
+            ]
+        )
+        return response.choices[0].message.content.strip().upper() == "YES"
+    except Exception as e:
+        print(f"Error analyzing content usefulness for {file_path}: {str(e)}")
+        return False
+
 def organize_directory(directory, user_categories):
     hash_dict = {}
     for root, dirs, files in os.walk(directory):
@@ -157,12 +176,25 @@ def organize_directory(directory, user_categories):
             
             file_path = os.path.join(root, file)
 
+            old = is_file_old(file_path)
+            useless = is_content_useless(file_path)
+
             # Check if file is old and potentially useless
-            if is_file_old(file_path):
+            if old and useless:
+                os.remove(file_path)
+                print(f"Removed old and useless file: {file_path}")
+                continue
+            # Check if file is old
+            elif old:
                 os.remove(file_path)
                 print(f"Removed old file: {file_path}")
                 continue
-            
+            # Check if file is potentially useless
+            elif useless:
+                os.remove(file_path)
+                print(f"Removed useless file: {file_path}")
+                continue
+
             file_hash = get_file_hash(file_path)
             
             if file_hash in hash_dict:
