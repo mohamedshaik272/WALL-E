@@ -27,15 +27,6 @@ class MenuItem(QWidget):
         layout.addStretch()
         layout.addWidget(self.shortcut_label)
 
-        self.setStyleSheet("""
-            QLabel {
-                color: #ffffff;
-            }
-            QLabel#shortcut_label {
-                color: #ffffff;
-            }
-        """)
-
     def update_shortcut(self, new_shortcut):
         self.shortcut_label.setText(new_shortcut)
 

@@ -15,16 +15,22 @@ class BorderedWidget(QWidget):
         self.load_background_image()
 
     def load_background_image(self):
-        image_path = os.path.join(os.path.dirname(__file__), Theme.get_current_background())
-        self.background_image = QPixmap(image_path)
-        if self.background_image.isNull():
-            print(f"Error: Background image could not be loaded: {image_path}")
+        if Theme.get_current_background():
+            image_path = os.path.join(os.path.dirname(__file__), Theme.get_current_background())
+            self.background_image = QPixmap(image_path)
+            if self.background_image.isNull():
+                print(f"Error: Background image could not be loaded: {image_path}")
+        else:
+            self.background_image = None
 
     def paintEvent(self, event):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.Antialiasing)
 
-        # Draw the background image
+        # Fill background
+        painter.fillRect(self.rect(), QColor(Theme.COLORS[Theme.get_current_theme()]['background']))
+
+        # Draw the background image for cyberpunk theme
         if self.background_image and not self.background_image.isNull():
             painter.drawPixmap(self.rect(), self.background_image, self.background_image.rect())
 
@@ -32,7 +38,7 @@ class BorderedWidget(QWidget):
         path = QPainterPath()
         path.addRoundedRect(QRectF(self.rect()).adjusted(1, 1, -1, -1), 20, 20)
         
-        border_color = QColor(Theme.COLORS[Theme.get_current_theme()]['accent'])
+        border_color = QColor(Theme.COLORS[Theme.get_current_theme()]['border'])
         painter.setPen(QPen(border_color, 2))
         painter.drawPath(path)
 
@@ -42,4 +48,3 @@ class BorderedWidget(QWidget):
 
     def resizeEvent(self, event):
         super().resizeEvent(event)
-        # No need to scale the image, as we're drawing it to fit

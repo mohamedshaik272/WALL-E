@@ -1,10 +1,13 @@
 from PyQt5.QtWidgets import QWidget, QVBoxLayout, QLabel, QHBoxLayout
-from PyQt5.QtCore import Qt
+from PyQt5.QtCore import Qt, pyqtSignal
 from PyQt5.QtGui import QFont
 
 class MenuItem(QWidget):
+    clicked = pyqtSignal(str)  # Signal to emit when clicked
+
     def __init__(self, icon, text, shortcut, font_family, parent=None):
         super().__init__(parent)
+        self.text = text
         layout = QHBoxLayout(self)
         layout.setContentsMargins(0, 2, 0, 2)
         layout.setSpacing(10)
@@ -34,7 +37,14 @@ class MenuItem(QWidget):
             }
         """)
 
+    def mousePressEvent(self, event):
+        if event.button() == Qt.LeftButton:
+            self.clicked.emit(self.text)
+        super().mousePressEvent(event)
+
 class MainMenu(QWidget):
+    item_clicked = pyqtSignal(str)  # Signal to emit when any item is clicked
+
     def __init__(self, parent=None, font_family="Arial"):
         super().__init__(parent)
         self.layout = QVBoxLayout(self)
@@ -56,4 +66,8 @@ class MainMenu(QWidget):
         
         for icon, text, shortcut in menu_options:
             item = MenuItem(icon, text, shortcut, self.font_family, self)
+            item.clicked.connect(self.on_item_clicked)
             self.layout.addWidget(item)
+
+    def on_item_clicked(self, text):
+        self.item_clicked.emit(text)
