@@ -15,6 +15,23 @@ load_dotenv()
 # Initialize the OpenAI client with the API key from .env
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
+"""
+Generates a file categorization scheme based on a user's description.
+
+This function interacts with the GPT-3.5 model to create a categorization scheme that maps file types to specific categories. 
+The function takes a user's description of their categorization needs and returns a Python dictionary
+with file extensions or MIME types as keys and a list containing the main category and subcategories as values.
+
+Args:
+    user_description (str): A textual description provided by the user detailing their file organization preferences.
+
+Returns:
+    dict: A dictionary where the keys are file extensions or MIME types, and the values are lists with the main category
+        and subcategories. If an error occurs, an empty dictionary is returned.
+          
+Raises:
+    Exception: Catches and logs any errors that occur during the interaction with the GPT model.
+"""
 def get_ai_categorization_scheme(user_description):
     try:
         response = client.chat.completions.create(
@@ -30,6 +47,18 @@ def get_ai_categorization_scheme(user_description):
         print(f"Error generating categorization scheme: {str(e)}")
         return {}
 
+"""
+Generates an MD5 hash for a given file.
+
+This function calculates the MD5 hash of a file.
+It reads the file in binary mode, processes its contents, and returns the hash as a hexadecimal string.
+
+Args:
+    file_path (str): The path to the file for which the hash is to be computed.
+
+Returns:
+    str: The MD5 hash of the file as a hexadecimal string.
+"""
 def get_file_hash(file_path):
     hasher = hashlib.md5()
     with open(file_path, 'rb') as file:
@@ -37,6 +66,22 @@ def get_file_hash(file_path):
         hasher.update(buf)
     return hasher.hexdigest()
 
+"""
+Categorizes a file based on user-defined categories or MIME types.
+
+This function assigns a file to a category based on the file's extension or MIME type. 
+If the user has provided a custom categorization scheme, the function will use that; 
+otherwise, it defaults to general categories like "documents", "images", or "others".
+
+Args:
+    file_path (str): The path to the file to be categorized.
+    user_categories (dict): A dictionary mapping file extensions, MIME types, or general types to categories. 
+        Keys can be file extensions (e.g., '.txt'), MIME types (e.g., 'text/plain'), or general types (e.g., 'image').
+
+Returns:
+    list: A list containing the main category (and possibly subcategories) for the file.
+        If the file type is not recognized, it returns a default category like 'Others'.
+"""
 def get_file_category(file_path, user_categories):
     if not user_categories:
         # Default categorization if no user categories are defined
@@ -68,15 +113,46 @@ def get_file_category(file_path, user_categories):
 
     return ['Others']
 
+"""
+This function uses the Tesseract OCR engine to extract text from an image.
+The extracted text is returned as a string, with a limit of the first 1000 characters.
+
+Args:
+    image_path (str): The path to the image file from which text needs to be extracted.
+
+Returns:
+    str: A string containing the first 1000 characters of the extracted text. If an error occurs during extraction, an empty string is returned.
+
+Raises:
+    Exception: Catches and logs any errors that occur during the image reading or text extraction process.
+"""
 def extract_text_from_image(image_path):
     try:
         with Image.open(image_path) as img:
             text = pytesseract.image_to_string(img)
-        return text[:1000]  # Return first 1000 characters
+        return text[:1000] 
     except Exception as e:
         print(f"Error extracting text from image {image_path}: {str(e)}")
         return ""
 
+"""
+Extracts text from a PDF file.
+
+This function uses a PDF reader to extract text from a PDF document. It processes the pages sequentially, 
+accumulating text until the specified character limit (`max_chars`) is reached or the end of the PDF is reached. If an error occurs during 
+the extraction process, an empty string is returned.
+
+Args:
+    file_path (str): The path to the PDF file from which text needs to be extracted.
+    max_chars (int, optional): The maximum number of characters to extract from the PDF. Defaults to 1000.
+
+Returns:
+    str: The extracted text from the PDF, limited to `max_chars` characters. 
+        If an error occurs during extraction, an empty string is returned.
+
+Raises:
+    Exception: Catches and logs any errors that occur during the PDF text extraction process.
+"""
 def extract_text_from_pdf(file_path, max_chars=1000):
     try:
         # Open the PDF using PdfReader
@@ -97,19 +173,35 @@ def extract_text_from_pdf(file_path, max_chars=1000):
         print(f"Error extracting text from PDF {file_path}: {str(e)}")
         return ""
 
+"""
+Extracts content from a file based on its type.
+
+This function retrieves the content of a file depending on its type. 
+For image files, it uses OCR to extract text. For PDFs, it uses a dedicated PDF extraction method. 
+For all other files, it reads and decodes the raw content.
+
+Args:
+    file_path (str): The path to the file from which content needs to be extracted.
+    max_chars (int, optional): The maximum number of characters to extract from the file. Defaults to 1000.
+
+Returns:
+    str: The extracted content as a string. If the file is an image or a PDF, the extracted text is returned. 
+        For other files, the function returns the raw content as a string (up to `max_chars`).
+        If an error occurs, an empty string is returned.
+
+Raises:
+    Exception: Catches and logs any errors that occur during file reading or content extraction.
+"""
 def get_file_content(file_path, max_chars=1000):
     try:
         mime_type, _ = mimetypes.guess_type(file_path)
 
         if mime_type and mime_type.startswith('image'):
-            # Handle image file extraction
             return extract_text_from_image(file_path)
 
         if mime_type and mime_type == 'application/pdf':
-            # Handle PDF text extraction
             return extract_text_from_pdf(file_path, max_chars)
 
-        # For other files, read raw content
         with open(file_path, 'rb') as file:
             raw_content = file.read(max_chars)
         return raw_content.decode('utf-8', errors='ignore')
@@ -118,6 +210,22 @@ def get_file_content(file_path, max_chars=1000):
         print(f"Error reading file {file_path}: {str(e)}")
         return ""
 
+"""
+Suggests a filename based on the content of a file.
+
+This function analyzes the content of a file and uses a GPT-3.5 model to generate a filename suggestion. 
+The filename is meant to be max 20 characters and descriptive of the file's content.
+
+Args:
+    file_path (str): The path to the file for which a filename suggestion is needed.
+
+Returns:
+    str: A filename based on the file's content.
+        If an error occurs or the content cannot be extracted, None is returned.
+
+Raises:
+    Exception: Catches and logs any errors that occur during the filename suggestion process.
+"""
 def suggest_filename(file_path):
     content = get_file_content(file_path)
     if not content:
@@ -136,19 +244,59 @@ def suggest_filename(file_path):
         print(f"Error suggesting filename for {file_path}: {str(e)}")
         return None
 
+"""
+Sanitizes a filename by removing invalid characters.
+
+This function cleans up a filename by keeping only alphanumeric characters, spaces, hyphens, 
+and underscores. It removes any other characters that may not be allowed in filenames on most file systems, 
+and trims any trailing whitespace.
+
+Args:
+    filename (str): The filename to be sanitized.
+
+Returns:
+    str: A sanitized version of the filename.
+"""
 def sanitize_filename(filename):
-    # Sanitize the filename
     sanitized = ''.join(c for c in filename if c.isalnum() or c in (' ', '-', '_')).rstrip()
     return sanitized
 
+"""
+Determines whether a file should be renamed based on its extension.
+
+This function checks the file extension to decide if renaming is appropriate. 
+Certain file types, like executables and disk images (e.g., .exe, .app, .iso), 
+are excluded from renaming.
+
+Args:
+    file_path (str): The path to the file being checked.
+
+Returns:
+    bool: Returns True if the file can be renamed, False if it is one of the excluded types.
+"""
 def should_rename_file(file_path):
-    # List of file types that shouldn't be renamed
     no_rename_extensions = ['.exe', '.app', '.iso']
     _, ext = os.path.splitext(file_path)
     if ext.lower() in no_rename_extensions:
         return False
     return True
 
+"""
+Reviews a code file and provides a brief summary of its functionality.
+
+This function reads the content of a code file and uses a GPT-3.5 model to generate a review that summarizes
+the code's functionality.
+
+Args:
+    file_path (str): The path to the code file to be reviewed.
+
+Returns:
+    str: A brief summary of the code's functionality as provided by the GPT model.
+        If an error occurs, a fallback message ("Unable to review the file") is returned.
+
+Raises:
+    Exception: Catches and logs any errors that occur during the code review process.
+"""
 def review_code_file(file_path):
     content = get_file_content(file_path)
     try:
@@ -165,17 +313,45 @@ def review_code_file(file_path):
         print(f"Error reviewing code file {file_path}: {str(e)}")
         return "Unable to review the file."
 
+"""
+Checks if a file is older than a specified threshold in days.
+
+This function compares the current time with the file's last modification time 
+to determine if the file is older than the given number of days.
+
+Args:
+    file_path (str): The path to the file being checked.
+    days_threshold (int, optional): The age threshold in days. Defaults to 365 days.
+
+Returns:
+    bool: Returns True if the file is older than the specified number of days, False otherwise.
+"""
 def is_file_old(file_path, days_threshold=365):
-    """Check if a file hasn't been accessed in a long time."""
     current_time = datetime.now().timestamp()
     last_access_time = os.path.getmtime(file_path)
     return (current_time - last_access_time) > (days_threshold * 24 * 60 * 60)
 
+"""
+Analyzes a file's content to determine if it is considered useless.
+
+This function examines the content of a file to decide if it contains information that is deemed useless, 
+such as non-English text, junk data, or installers. It uses a GPT-3.5 model to analyze the content and 
+respond with either 'YES' (if the content is useless) or 'NO' (if the content might be valuable).
+
+Args:
+    file_path (str): The path to the file whose content needs to be analyzed.
+
+Returns:
+    bool: Returns True if the content is deemed useless ('YES' from the model), or False if the content is valuable 
+        or can't be assessed (either 'NO' from the model or an error occurs).
+
+Raises:
+    Exception: Catches and logs any errors that occur during content analysis.
+"""
 def is_content_useless(file_path):
-    """Analyze file content to determine if it's useless."""
     content = get_file_content(file_path)
     if not content:
-        return False  # If we can't read the content, we assume it's not useless
+        return False
 
     try:
         response = client.chat.completions.create(
@@ -190,6 +366,27 @@ def is_content_useless(file_path):
         print(f"Error analyzing content usefulness for {file_path}: {str(e)}")
         return False
 
+"""
+Organizes files in a directory.
+
+This function traverses the specified directory and performs several operations on the files:
+- Removes old and potentially useless files.
+- Deletes duplicates based on file hash.
+- Removes specific file types (e.g., .dmg files).
+- Organizes files into categories based on their type and content.
+- Renames files based on their content, if necessary.
+- Moves files into appropriate category folders.
+
+Args:
+    directory (str): The path to the directory that needs to be organized.
+    user_categories (dict): A dictionary defining user-specific file categories and their associated types (e.g., extensions or MIME types).
+
+Returns:
+    None: The function modifies the file system by deleting, moving, and renaming files as needed.
+
+Raises:
+    Exception: Catches and logs any errors that occur during the file organization process.
+"""
 def organize_directory(directory, user_categories):
     hash_dict = {}
     for root, dirs, files in os.walk(directory):
@@ -277,6 +474,18 @@ def organize_directory(directory, user_categories):
     # After organizing, delete empty folders
     delete_empty_folders(directory)
 
+"""
+Deletes empty folders within a specified directory.
+
+This function walks through a directory and its subdirectories, checking each folder to see if it is empty.
+If a folder is found to be empty, it is removed. Any errors encountered during the deletion process are logged.
+
+Args:
+    path (str): The path to the directory where empty folders should be deleted.
+
+Returns:
+    None: The function does not return any value. It simply performs the deletion of empty folders and prints logs.
+"""
 def delete_empty_folders(path):
     for root, dirs, files in os.walk(path, topdown=False):
         for dir in dirs:
@@ -291,7 +500,6 @@ def delete_empty_folders(path):
 if __name__ == "__main__":
     target_directory = input("Enter the directory path to organize: ")
     
-    # Ask user if they want to use custom categorization
     use_custom_categories = input("Do you want to use a custom directory organization scheme? (y/n): ").lower() == 'y'
     
     categorization_scheme = {}
