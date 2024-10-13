@@ -15,12 +15,14 @@ load_dotenv()
 # Initialize the OpenAI client with the API key from .env
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
+#"gpt-3.5-turbo"
+
 def get_ai_categorization_scheme(user_description):
     try:
         response = client.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=[
-                {"role": "system", "content": "You are an assistant that helps users organize their files. Based on the user's description, create a categorization scheme that maps file types to category names. Use precise category names, for example, code files should be named 'Code' or 'Programming' instead of 'Text'. Respond with a Python dictionary where keys are file extensions or MIME types, and values are category names."},
+                {"role": "system", "content": "You are an assistant that helps users organize their files. Based on the user's description, create a categorization scheme that maps file types to category names and subcategories. Use precise category names, for example, code files should be named 'Code' or 'Programming' instead of 'Text'. Respond with a Python dictionary where keys are file extensions or MIME types, and values are lists containing the main category and subcategories."},
                 {"role": "user", "content": f"Create a file categorization scheme based on this description: {user_description}"}
             ]
         )
@@ -43,8 +45,8 @@ def get_file_category(file_path, user_categories):
         mime_type, _ = mimetypes.guess_type(file_path)
         if mime_type:
             category = mime_type.split('/')[0]
-            return category if category != 'application' else 'documents'
-        return 'others'
+            return [category if category != 'application' else 'documents']
+        return ['others']
 
     # Check file extension
     _, ext = os.path.splitext(file_path)
@@ -64,9 +66,9 @@ def get_file_category(file_path, user_categories):
 
     # Consider drawings as images
     if mime_type and mime_type.startswith('application/drawing'):
-        return 'Images'
+        return ['Images']
 
-    return 'Others'
+    return ['Others']
 
 def extract_text_from_image(image_path):
     try:
@@ -164,18 +166,18 @@ def organize_directory(directory, user_categories):
                 print(f"Removed .dmg file: {file_path}")
                 continue
             
-            # Get file category
-            category = get_file_category(file_path, user_categories)
+            # Get file category and subcategories
+            categories = get_file_category(file_path, user_categories)
             
             # Handle code files (.c, .java, etc.)
             _, ext = os.path.splitext(file)
             if ext.lower() in ['.c', '.java', '.py', '.cpp', '.h', '.js', '.cs']:
                 review = review_code_file(file_path)
                 print(f"Code file review for {file}:\n{review}")
-                category = 'Code'
+                categories = ['Code']
             
-            # Create category folder
-            category_path = os.path.join(directory, category)
+            # Create category and subcategory folders
+            category_path = os.path.join(directory, *categories)
             os.makedirs(category_path, exist_ok=True)
             
             # Suggest new filename if appropriate
@@ -199,6 +201,20 @@ def organize_directory(directory, user_categories):
             # Move and rename file
             shutil.move(file_path, new_file_path)
             print(f"Moved and renamed: {file} -> {new_file_path}")
+
+    # After organizing, delete empty folders
+    delete_empty_folders(directory)
+
+def delete_empty_folders(path):
+    for root, dirs, files in os.walk(path, topdown=False):
+        for dir in dirs:
+            dir_path = os.path.join(root, dir)
+            try:
+                if not os.listdir(dir_path):  # Check if the directory is empty
+                    os.rmdir(dir_path)
+                    print(f"Deleted empty folder: {dir_path}")
+            except Exception as e:
+                print(f"Error deleting folder {dir_path}: {str(e)}")
 
 if __name__ == "__main__":
     target_directory = input("Enter the directory path to organize: ")
