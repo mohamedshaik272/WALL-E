@@ -58,68 +58,68 @@ void loop() {
     switch (receivedData) {
       case 'f':
         Serial.println("Moving Forward and Back");
-        forward(255);
-        delay(3000); // Move forward for 3 seconds
+        forward(255);  // Highest speed forward
+        delay(30000);  // Move forward for 30 seconds
         stopAll();
-        delay(500); // Short pause
-        backward(255);
-        delay(3000); // Move backward for 3 seconds
+        delay(1000);   // 1 second pause
+        backward(200); // Slower backward speed
+        delay(30000);  // Move backward for 30 seconds
         stopAll();
         Serial.println("Returned to starting position");
         break;
       case 'r':
         Serial.println("Moving Right and Back");
-        forward(255);
-        delay(1000); // Move forward for 1 second
+        forward(255);  // Highest speed forward
+        delay(10000);  // Move forward for 10 seconds
         stopAll();
-        delay(500); // Short pause
+        delay(1000);   // 1 second pause
         turnRight(200);
-        delay(2000); // Turn right for 2 seconds
+        delay(15000);  // Turn right for 15 seconds
         stopAll();
-        delay(500); // Short pause
-        forward(255);
-        delay(1000); // Move forward for 1 second
+        delay(1000);   // 1 second pause
+        forward(255);  // Highest speed forward
+        delay(10000);  // Move forward for 10 seconds
         stopAll();
-        delay(500); // Short pause
+        delay(1000);   // 1 second pause
         // Return to starting position
-        backward(255);
-        delay(1000);
+        backward(200); // Slower backward speed
+        delay(10000);  // Move backward for 10 seconds
         stopAll();
-        delay(500);
+        delay(1000);   // 1 second pause
         turnLeft(200);
-        delay(2000);
+        delay(15000);  // Turn left for 15 seconds
         stopAll();
-        delay(500);
-        backward(255);
-        delay(1000);
+        delay(1000);   // 1 second pause
+        backward(200); // Slower backward speed
+        delay(10000);  // Move backward for 10 seconds
         stopAll();
         Serial.println("Returned to starting position");
         break;
       case 'l':
         Serial.println("Moving Left and Back");
-        forward(255);
-        delay(1000); // Move forward for 1 second
+        forward(255);  // Highest speed forward
+        delay(10000);  // Move forward for 10 seconds
         stopAll();
-        delay(500); // Short pause
+        delay(1000);   // 1 second pause
         turnLeft(200);
-        delay(2000); // Turn left for 2 seconds
+        delay(15000);  // Turn left for 15 seconds
         stopAll();
-        delay(500); // Short pause
-        forward(255);
-        delay(1000); // Move forward for 1 second
+        delay(1000);   // 1 second pause
+        forward(255);  // Highest speed forward
+        delay(10000);  // Move forward for 10 seconds
         stopAll();
-        delay(500); // Short pause
+        delay(1000);   // 1 second pause
         // Return to starting position
-        backward(255);
-        delay(1000);
+        backward(200); // Slower backward speed
+        delay(10000);  // Move backward for 10 seconds
         stopAll();
-        delay(500);
+        delay(1000);   // 1 second pause
         turnRight(200);
-        delay(2000);
+        delay(15000);  // Turn right for 15 seconds
         stopAll();
-        delay(500);
-        backward(255);
-        delay(1000);
+        delay(1000);   // 1 second pause
+        backward(200); // Slower backward speed
+        delay(10000);  // Move backward for 10 seconds
         stopAll();
         Serial.println("Returned to starting position");
         break;

@@ -86,103 +86,99 @@ if camera is None:
 with open(labels_path, 'r') as f:
     labels = [line.strip() for line in f.readlines()]
 
-def detect_brown_object(frame):
-    # Convert to HSV color space
+def detect_brown_paper(frame):
     hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
-    
-    # Define range for brown color
-    lower_brown = np.array([10, 100, 20])
-    upper_brown = np.array([20, 255, 200])
-    
-    # Create a mask for brown color
+    lower_brown = np.array([5, 50, 50])
+    upper_brown = np.array([30, 255, 200])
     mask = cv2.inRange(hsv, lower_brown, upper_brown)
-    
-    # Calculate the percentage of brown pixels
     brown_pixel_count = cv2.countNonZero(mask)
     total_pixels = frame.shape[0] * frame.shape[1]
     brown_percentage = (brown_pixel_count / total_pixels) * 100
     
-    if brown_percentage > 50:
-        # Find contours in the mask
+    if brown_percentage > 20:  # Lowered threshold
         contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-        
         if contours:
-            # Get the largest contour
             largest_contour = max(contours, key=cv2.contourArea)
             x, y, w, h = cv2.boundingRect(largest_contour)
-            
             return (x, y, w, h), brown_percentage
     
     return None, brown_percentage
+
+def detect_redbull_can(frame):
+    hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+    lower_blue = np.array([90, 50, 50])
+    upper_blue = np.array([150, 255, 255])
+    mask = cv2.inRange(hsv, lower_blue, upper_blue)
+    blue_pixel_count = cv2.countNonZero(mask)
+    total_pixels = frame.shape[0] * frame.shape[1]
+    blue_percentage = (blue_pixel_count / total_pixels) * 100
+    
+    if blue_percentage > 5:  # Increased threshold
+        contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        if contours:
+            largest_contour = max(contours, key=cv2.contourArea)
+            x, y, w, h = cv2.boundingRect(largest_contour)
+            aspect_ratio = h / w
+            if 1.5 < aspect_ratio < 3.5:
+                return (x, y, w, h), blue_percentage
+    
+    return None, blue_percentage
+
+def detect_large_object(frame):
+    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+    _, binary = cv2.threshold(gray, 50, 255, cv2.THRESH_BINARY)
+    contours, _ = cv2.findContours(binary, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    
+    if contours:
+        largest_contour = max(contours, key=cv2.contourArea)
+        x, y, w, h = cv2.boundingRect(largest_contour)
+        object_area = w * h
+        frame_area = frame.shape[0] * frame.shape[1]
+        
+        # Adjust these thresholds as needed
+        if object_area > frame_area * 0.3 and object_area < frame_area * 0.8:
+            aspect_ratio = h / w
+            if 0.5 < aspect_ratio < 2.0:  # This allows for objects that aren't too elongated
+                return (x, y, w, h)
+    
+    return None
 
 def detect_object():
     ret, frame = camera.read()
     if not ret:
         print("Failed to capture image")
-        return False, None, None, 0
+        return False, None, None, 0, 0, 0
 
-    # Check for brown object
-    brown_object, brown_percentage = detect_brown_object(frame)
+    brown_object, brown_percentage = detect_brown_paper(frame)
+    redbull_object, blue_percentage = detect_redbull_can(frame)
+    large_object = detect_large_object(frame)
+    
     if brown_object is not None:
         x, y, w, h = brown_object
-        # Draw rectangle and label
         cv2.rectangle(frame, (x, y), (x+w, y+h), (0, 255, 0), 2)
-        label = f"Paper: {brown_percentage:.0f}%"
+        label = f"Brown Paper: {brown_percentage:.0f}%"
         cv2.putText(frame, label, (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 255, 0), 2)
-        
-        print(f"Detected: Large brown object covering {brown_percentage:.0f}% of the screen")
-        print("Category: Paper")
-        print(f"Confidence: {brown_percentage:.0f}%")
-        return True, frame, "Paper", brown_percentage
+        print(f"Detected: Brown paper covering {brown_percentage:.0f}% of the screen")
+        return True, frame, "Brown Paper", brown_percentage, brown_percentage, blue_percentage
 
-    # If no large brown object detected, use the TFLite model
-    input_shape = input_details[0]['shape'][1:3]
-    image_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-    image_resized = cv2.resize(image_rgb, input_shape)
-    image = np.expand_dims(image_resized, axis=0).astype(np.uint8)
+    if redbull_object is not None:
+        x, y, w, h = redbull_object
+        cv2.rectangle(frame, (x, y), (x+w, y+h), (0, 255, 0), 2)
+        label = f"Red Bull: {blue_percentage:.0f}%"
+        cv2.putText(frame, label, (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 255, 0), 2)
+        print(f"Detected: Red Bull can with {blue_percentage:.0f}% blue content")
+        return True, frame, "Red Bull", blue_percentage, brown_percentage, blue_percentage
 
-    # Run inference
-    interpreter.set_tensor(input_details[0]['index'], image)
-    interpreter.invoke()
+    if large_object is not None:
+        x, y, w, h = large_object
+        cv2.rectangle(frame, (x, y), (x+w, y+h), (0, 255, 0), 2)
+        label = "Large Object"
+        cv2.putText(frame, label, (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 255, 0), 2)
+        print("Detected: Large object within specified size and aspect ratio")
+        return True, frame, "Large Object", 100, brown_percentage, blue_percentage
 
-    # Get detection results
-    boxes = interpreter.get_tensor(output_details[0]['index'])[0]
-    classes = interpreter.get_tensor(output_details[1]['index'])[0]
-    scores = interpreter.get_tensor(output_details[2]['index'])[0]
-
-    # Find the detection with highest confidence
-    max_score_index = np.argmax(scores)
-    if scores[max_score_index] > 0.2:  # Lowered confidence threshold
-        detected_class = labels[int(classes[max_score_index])]
-        
-        # Get the bounding box
-        y_min, x_min, y_max, x_max = boxes[max_score_index]
-        h, w, _ = frame.shape
-        bbox = (int(x_min * w), int(y_min * h), int(x_max * w), int(y_max * h))
-        
-        # Calculate the area of the bounding box
-        bbox_area = (bbox[2] - bbox[0]) * (bbox[3] - bbox[1])
-        frame_area = h * w
-        
-        # Adjust confidence if the object takes up more than half the screen
-        base_confidence = scores[max_score_index] * 100
-        if bbox_area > (frame_area / 2):
-            confidence = min(base_confidence + 40, 100)  # Add 40 percentage points (0.4 * 100)
-        else:
-            confidence = base_confidence
-        
-        # Draw bounding box and label
-        cv2.rectangle(frame, (bbox[0], bbox[1]), (bbox[2], bbox[3]), (0, 255, 0), 2)
-        label = f"{detected_class}: {confidence:.0f}%"
-        cv2.putText(frame, label, (bbox[0], bbox[1] - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 255, 0), 2)
-        
-        print(f"Detected: {detected_class}")
-        print(f"Confidence: {confidence:.0f}%")
-        return True, frame, detected_class, confidence
-    else:
-        print("No object detected with sufficient confidence")
-    
-    return False, frame, None, 0
+    print("No object detected")
+    return False, frame, None, 0, brown_percentage, blue_percentage
 
 # Ensure 'images' directory exists
 if not os.path.exists('images'):
@@ -195,34 +191,36 @@ try:
     while camera.isOpened():
         detection_count += 1
         print(f"\nAttempt {detection_count}: Scanning for objects...")
-        detected, frame, detected_class, confidence = detect_object()
+        detected, frame, detected_class, confidence, brown_percentage, blue_percentage = detect_object()
+        
+        timestamp = int(time.time())
+        image_path = f"images/detection_{timestamp}.jpg"
+        cv2.imwrite(image_path, frame)
+        print(f"Image saved: {image_path}")
         
         if detected:
-            # Save the image
-            timestamp = int(time.time())
-            image_path = f"images/detection_{timestamp}.jpg"
-            cv2.imwrite(image_path, frame)
-            print(f"Image saved: {image_path}")
-            
-            if confidence >= 80:
-                print(f"Object detected with {confidence:.0f}% confidence. Labeling as {detected_class}.")
-                print("Sending forward command to Arduino...")
+            if detected_class == "Brown Paper" or (detected_class == "Large Object" and brown_percentage > blue_percentage):
+                print(f"{detected_class} detected. Sending 'f' command to Arduino...")
                 response = send_arduino_command('f')
-                if response != "Moving forward":
+                if response != "Moving Forward and Back":
                     print("Warning: Unexpected response from Arduino")
-                time.sleep(10)  # Move forward for 10 seconds
-                print("Sending stop command to Arduino...")
-                response = send_arduino_command('s')
-                if response != "Stopped":
+                break  # Stop after sending command
+            elif detected_class == "Red Bull" or (detected_class == "Large Object" and blue_percentage > brown_percentage):
+                print(f"{detected_class} detected. Sending 'r' command to Arduino...")
+                response = send_arduino_command('r')
+                if response != "Moving Right and Back":
                     print("Warning: Unexpected response from Arduino")
-                break  # Exit the loop after sending the signal
+                break  # Stop after sending command
             else:
-                print(f"Detected {detected_class} with {confidence:.0f}% confidence. Continuing...")
+                print(f"Detected {detected_class} but no action taken.")
         else:
-            print("No object detected in this scan.")
+            print(f"No clear detection. Brown: {brown_percentage:.0f}%, Blue: {blue_percentage:.0f}%")
+        
         time.sleep(1)  # Delay between detections
 except KeyboardInterrupt:
     print("Detection stopped by user.")
+except Exception as e:
+    print(f"An error occurred: {e}")
 finally:
     print("Cleaning up...")
     if camera is not None:
